@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ТБ-Допуск — тестирование по технике безопасности</title>
+
+  <!--
+    KEYCLOAK ИНТЕГРАЦИЯ (раскомментировать когда будет готово):
+    <script src="https://<KEYCLOAK_HOST>/auth/js/keycloak.js"></script>
+    Затем убрать блок DEMO ROLE SWITCH и заменить initApp() на keycloak.init(...)
+    см. README.md → раздел "Подключение Keycloak"
+  -->
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary:   #ffffff;
+      --bg-secondary: #f5f5f4;
+      --bg-tertiary:  #eeede9;
+      --text-primary:   #1a1a18;
+      --text-secondary: #6b6b67;
+      --text-hint:      #9b9b97;
+      --border-soft:    rgba(0,0,0,0.10);
+      --border-mid:     rgba(0,0,0,0.18);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --blue-bg:    #E6F1FB;
+      --blue-text:  #0C447C;
+      --blue-mid:   #185FA5;
+      --blue-border:#B5D4F4;
+      --green-bg:   #EAF3DE;
+      --green-text: #27500A;
+      --green-mid:  #3B6D11;
+      --green-border:#C0DD97;
+      --amber-bg:   #FAEEDA;
+      --amber-text: #633806;
+      --amber-border:#FAC775;
+      --red-bg:     #FCEBEB;
+      --red-text:   #791F1F;
+      --red-mid:    #A32D2D;
+      --red-border: #F7C1C1;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'SF Mono', 'Fira Code', Consolas, monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary:   #1e1e1c;
+        --bg-secondary: #2a2a28;
+        --bg-tertiary:  #323230;
+        --text-primary:   #f0ede6;
+        --text-secondary: #9b9b97;
+        --text-hint:      #6b6b67;
+        --border-soft:    rgba(255,255,255,0.08);
+        --border-mid:     rgba(255,255,255,0.15);
+        --blue-bg:    #042C53;
+        --blue-text:  #B5D4F4;
+        --blue-border:#185FA5;
+        --green-bg:   #173404;
+        --green-text: #C0DD97;
+        --green-border:#3B6D11;
+        --amber-bg:   #412402;
+        --amber-text: #FAC775;
+        --amber-border:#854F0B;
+        --red-bg:     #501313;
+        --red-text:   #F7C1C1;
+        --red-border: #A32D2D;
+      }
+    }
+
+    body {
+      font-family: var(--font);
+      font-size: 15px;
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+      min-height: 100vh;
+    }
+
+    /* ── LAYOUT ── */
+    .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 20px;
+      background: var(--bg-primary);
+      border-bottom: 0.5px solid var(--border-soft);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .topbar-logo { font-size: 15px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    .topbar-logo .icon { color: var(--blue-mid); font-size: 20px; }
+    .topbar-user { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+
+    .avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 500;
+    }
+    .av-eng { background: var(--blue-bg); color: var(--blue-text); }
+    .av-ins { background: var(--green-bg); color: var(--green-text); }
+
+    /* DEMO only — убрать после Keycloak */
+    .role-switch {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 20px;
+      background: var(--bg-secondary);
+      border-bottom: 0.5px solid var(--border-soft);
+    }
+    .role-btn {
+      padding: 5px 14px; border-radius: var(--radius-md);
+      border: 0.5px solid var(--border-mid);
+      background: var(--bg-primary);
+      font-size: 13px; cursor: pointer;
+      color: var(--text-secondary);
+      font-family: var(--font);
+    }
+    .role-btn.active { background: var(--blue-bg); color: var(--blue-text); border-color: var(--blue-border); }
+    .demo-label { font-size: 12px; color: var(--text-hint); margin-left: auto; }
+
+    .main { padding: 20px; flex: 1; max-width: 800px; margin: 0 auto; width: 100%; }
+
+    /* ── SCREENS ── */
+    .screen { display: none; }
+    .screen.visible { display: block; }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex; gap: 0;
+      border-bottom: 0.5px solid var(--border-soft);
+      margin-bottom: 16px;
+    }
+    .tab {
+      padding: 8px 16px; font-size: 13px; cursor: pointer;
+      color: var(--text-secondary);
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+    }
+    .tab.active { color: var(--blue-mid); border-bottom-color: var(--blue-mid); font-weight: 500; }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-soft);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+    }
+    .card + .card { margin-top: 12px; }
+
+    /* ── SECTION TITLE ── */
+    .section-title {
+      font-size: 11px; font-weight: 500;
+      color: var(--text-hint);
+      text-transform: uppercase; letter-spacing: .06em;
+      margin-bottom: 12px;
+    }
+
+    /* ── BADGES ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 12px; border-radius: var(--radius-md);
+      font-size: 12px; font-weight: 500;
+    }
+    .badge-waiting { background: var(--amber-bg); color: var(--amber-text); border: 0.5px solid var(--amber-border); }
+    .badge-approved { background: var(--green-bg); color: var(--green-text); border: 0.5px solid var(--green-border); }
+    .badge-locked   { background: var(--red-bg);   color: var(--red-text);   border: 0.5px solid var(--red-border);  }
+    .badge-info     { background: var(--blue-bg);  color: var(--blue-text);  border: 0.5px solid var(--blue-border); }
+    .shift-day   { background: var(--blue-bg);  color: var(--blue-text);  font-size: 12px; padding: 2px 8px; border-radius: var(--radius-md); }
+    .shift-night { background: #EEEDFE; color: #3C3489; font-size: 12px; padding: 2px 8px; border-radius: var(--radius-md); }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 18px; border-radius: var(--radius-md);
+      font-size: 14px; cursor: pointer; font-family: var(--font);
+      border: none; font-weight: 400;
+    }
+    .btn-primary { background: var(--blue-mid); color: #fff; }
+    .btn-primary:hover { background: var(--blue-text); }
+    .btn-success { background: var(--green-mid); color: #fff; }
+    .btn-success:hover { background: var(--green-text); }
+    .btn-danger  { background: var(--red-mid); color: #fff; }
+    .btn-outline {
+      background: transparent;
+      border: 0.5px solid var(--border-mid);
+      color: var(--text-primary);
+    }
+    .btn-approve { background: var(--green-mid); color: #fff; padding: 5px 14px; font-size: 13px; border-radius: var(--radius-md); cursor: pointer; font-family: var(--font); border: none; }
+    .btn-reject  { background: transparent; border: 0.5px solid var(--red-mid); color: var(--red-mid); padding: 5px 14px; font-size: 13px; border-radius: var(--radius-md); cursor: pointer; font-family: var(--font); }
+
+    /* ── LOCK SCREEN ── */
+    .lock-screen { text-align: center; padding: 48px 20px; }
+    .lock-icon { font-size: 52px; margin-bottom: 16px; }
+    .lock-screen h2 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+    .lock-screen p  { font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6; }
+
+    /* ── TEST ── */
+    .test-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .test-progress { font-size: 13px; color: var(--text-secondary); }
+    .timer-badge {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--red-bg); color: var(--red-text);
+      border: 0.5px solid var(--red-border);
+      border-radius: var(--radius-md); padding: 5px 12px;
+      font-size: 14px; font-weight: 500;
+    }
+    .timer-badge.warn { background: var(--amber-bg); color: var(--amber-text); border-color: var(--amber-border); }
+
+    .progress-bar-wrap { height: 4px; background: var(--bg-secondary); border-radius: 4px; margin-bottom: 16px; }
+    .progress-bar-fill { height: 4px; background: var(--blue-mid); border-radius: 4px; transition: width .3s; }
+
+    .question-text { font-size: 15px; font-weight: 500; margin-bottom: 16px; line-height: 1.55; }
+
+    .options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .opt {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      border: 0.5px solid var(--border-mid);
+      border-radius: var(--radius-md);
+      cursor: pointer; font-size: 14px;
+    }
+    .opt:hover { background: var(--bg-secondary); }
+    .opt.selected { background: var(--blue-bg); border-color: var(--blue-border); color: var(--blue-text); }
+    .opt input[type=radio] { accent-color: var(--blue-mid); }
+
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    /* ── RESULT / WAIT ── */
+    .result-center { text-align: center; padding: 36px 20px; }
+    .result-icon { font-size: 48px; margin-bottom: 14px; }
+    .result-center h2 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+    .result-center p  { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6; }
+
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 360px; margin: 16px auto; }
+    .metric { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 12px; text-align: center; }
+    .metric-val { font-size: 22px; font-weight: 500; }
+    .metric-lbl { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+    /* ── WFM TABLE ── */
+    .wfm-table { width: 100%; font-size: 13px; border-collapse: collapse; }
+    .wfm-table th { text-align: left; padding: 8px 10px; font-size: 12px; font-weight: 500; color: var(--text-secondary); border-bottom: 0.5px solid var(--border-soft); }
+    .wfm-table td { padding: 8px 10px; border-bottom: 0.5px solid var(--border-soft); }
+    .wfm-table tr:last-child td { border-bottom: none; }
+
+    /* ── NOTIFICATIONS ── */
+    .notif-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 0.5px solid var(--border-soft); }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-av { width: 38px; height: 38px; border-radius: 50%; background: var(--green-bg); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: var(--green-text); flex-shrink: 0; }
+    .notif-body { flex: 1; }
+    .notif-name { font-size: 14px; font-weight: 500; }
+    .notif-meta { font-size: 12px; color: var(--text-secondary); margin-top: 3px; }
+    .notif-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+    /* ── PROFILE ── */
+    .profile-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+    .profile-av { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 500; }
+    .info-table { width: 100%; font-size: 14px; border-collapse: collapse; }
+    .info-table td { padding: 7px 0; border-bottom: 0.5px solid var(--border-soft); }
+    .info-table tr:last-child td { border-bottom: none; }
+    .info-table td:first-child { color: var(--text-secondary); width: 170px; }
+
+    /* ── JSON ── */
+    .json-block {
+      background: var(--bg-secondary);
+      border: 0.5px solid var(--border-soft);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      font-family: var(--font-mono);
+      font-size: 12px; line-height: 1.7;
+      color: var(--text-secondary);
+      overflow-x: auto; white-space: pre;
+    }
+    .permit-entry { margin-bottom: 14px; }
+    .permit-entry-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .permit-entry-id { font-size: 13px; font-weight: 500; }
+
+    .empty-state { font-size: 13px; color: var(--text-secondary); padding: 16px 0; }
+
+    /* ── API STATUS (debug panel, скрыт в проде) ── */
+    .api-log {
+      position: fixed; bottom: 12px; right: 12px;
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-mid);
+      border-radius: var(--radius-md);
+      padding: 8px 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      max-width: 320px;
+      z-index: 100;
+      display: none; /* включить для отладки */
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ══════════ TOPBAR ══════════ -->
+  <header class="topbar">
+    <div class="topbar-logo">
+      <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+      ТБ-Допуск
+    </div>
+    <div class="topbar-user">
+      <span id="topbar-name">Алмас Дюсенов</span>
+      <div class="avatar av-ins" id="topbar-av">АД</div>
+    </div>
+  </header>
+
+  <!-- ══════════ DEMO ROLE SWITCH (убрать после Keycloak) ══════════ -->
+  <div class="role-switch" id="demo-switch">
+    <button class="role-btn active" onclick="switchRole('installer')">⛑ Инсталлятор</button>
+    <button class="role-btn" onclick="switchRole('engineer')">✔ Инженер</button>
+    <span class="demo-label">демо — переключение ролей</span>
+  </div>
+
+  <div class="main">
+
+    <!-- ══════════════════════════════════════
+         INSTALLER SCREEN
+    ══════════════════════════════════════ -->
+    <div class="screen visible" id="screen-installer">
+      <div class="tabs">
+        <div class="tab active" id="itab-test"    onclick="insTab('test')">Тестирование</div>
+        <div class="tab"        id="itab-wfm"     onclick="insTab('wfm')">Наряды ВФМ</div>
+        <div class="tab"        id="itab-profile" onclick="insTab('profile')">Профиль</div>
+      </div>
+
+      <!-- ─── TAB: ТЕСТИРОВАНИЕ ─── -->
+      <div id="ins-test">
+
+        <!-- STATE: start -->
+        <div class="card" id="ins-state-start">
+          <div class="lock-screen">
+            <div class="lock-icon" style="color: var(--red-mid);">
+              <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <h2>Пройдите тест по ТБ</h2>
+            <p>Доступ к нарядам ВФМ заблокирован до прохождения ежедневного теста.<br>Таймер: 30 минут. Порог прохождения: 70%.</p>
+            <button class="btn btn-primary" onclick="startTest()">▶ Начать тест</button>
+          </div>
+        </div>
+
+        <!-- STATE: in progress -->
+        <div class="card" id="ins-state-test" style="display:none">
+          <div class="test-header">
+            <span class="test-progress" id="q-progress">Вопрос 1 из 5</span>
+            <div class="timer-badge" id="timer-badge">⏱ <span id="timer-display">30:00</span></div>
+          </div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" id="q-pbar" style="width:20%"></div>
+          </div>
+          <div class="question-text" id="q-text"></div>
+          <div class="options" id="q-options"></div>
+          <div class="btn-row">
+            <button class="btn btn-outline" onclick="prevQ()" id="btn-prev" style="display:none">← Назад</button>
+            <button class="btn btn-primary" onclick="nextQ()"    id="btn-next">Далее →</button>
+            <button class="btn btn-success" onclick="submitTest()" id="btn-submit" style="display:none">Сдать тест ✓</button>
+          </div>
+        </div>
+
+        <!-- STATE: failed -->
+        <div class="card" id="ins-state-fail" style="display:none">
+          <div class="result-center">
+            <div class="result-icon" style="color:var(--red-mid);">✗</div>
+            <h2>Тест не пройден</h2>
+            <p>Вы набрали <strong id="fail-score"></strong>. Минимум для прохождения — 70%.</p>
+            <button class="btn btn-primary" onclick="retryTest()">↺ Попробовать снова</button>
+          </div>
+        </div>
+
+        <!-- STATE: waiting engineer approval -->
+        <div class="card" id="ins-state-wait" style="display:none">
+          <div class="result-center">
+            <div class="result-icon" style="color:var(--amber-text);">⧗</div>
+            <h2>Тест пройден</h2>
+            <div class="metrics">
+              <div class="metric"><div class="metric-val" id="wait-score">—</div><div class="metric-lbl">Результат</div></div>
+              <div class="metric"><div class="metric-val" id="wait-time">—</div><div class="metric-lbl">Время</div></div>
+              <div class="metric"><div class="metric-val" id="wait-correct">—</div><div class="metric-lbl">Верных</div></div>
+            </div>
+            <div class="badge badge-waiting">⧗ Ожидание апрува инженера</div>
+            <p style="margin-top:14px">Уведомление отправлено инженеру. Наряды ВФМ будут разблокированы после подтверждения.</p>
+            <button class="btn btn-outline" style="margin-top:16px" onclick="switchRole('engineer')">→ Симулировать апрув инженера</button>
+          </div>
+        </div>
+
+        <!-- STATE: approved -->
+        <div class="card" id="ins-state-approved" style="display:none">
+          <div class="result-center">
+            <div class="result-icon" style="color:var(--green-mid);">✓</div>
+            <h2>Доступ открыт</h2>
+            <div class="badge badge-approved">✓ Апрув получен</div>
+            <p style="margin-top:14px">Инженер подтвердил допуск. Наряды ВФМ разблокированы на сегодня.</p>
+            <div class="btn-row" style="justify-content:center;margin-top:16px">
+              <button class="btn btn-primary"  onclick="insTab('wfm')">📋 Открыть наряды ВФМ</button>
+              <button class="btn btn-outline"  onclick="insTab('profile')">📄 Наряд допуска (JSON)</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /ins-test -->
+
+      <!-- ─── TAB: НАРЯДЫ ВФМ ─── -->
+      <div id="ins-wfm" style="display:none">
+        <div class="card" id="wfm-locked-msg" style="display:none">
+          <div class="lock-screen" style="padding:28px 0">
+            <div class="lock-icon" style="color:var(--red-mid);">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <h2>Наряды заблокированы</h2>
+            <p>Сначала пройдите тест по ТБ и получите апрув инженера.</p>
+            <button class="btn btn-outline" onclick="insTab('test')">Перейти к тесту</button>
+          </div>
+        </div>
+
+        <div id="wfm-content" style="display:none">
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+              <div>
+                <div class="section-title">Наряды ВФМ</div>
+                <div style="font-size:13px;color:var(--text-secondary)" id="wfm-date-label"></div>
+              </div>
+              <div class="badge badge-approved">🔓 Доступ активен</div>
+            </div>
+            <table class="wfm-table">
+              <thead>
+                <tr>
+                  <th>№ наряда</th><th>Объект</th><th>Смена</th><th>Время</th><th>Статус</th>
+                </tr>
+              </thead>
+              <tbody id="wfm-rows">
+                <!-- заполняется из loadShifts() → GET /api/wfm-shift-be/v1.0/shift -->
+              </tbody>
+            </table>
+            <div id="wfm-loading" style="font-size:13px;color:var(--text-secondary);padding:12px 0;display:none">Загрузка нарядов…</div>
+          </div>
+        </div>
+      </div><!-- /ins-wfm -->
+
+      <!-- ─── TAB: ПРОФИЛЬ (инсталлятор) ─── -->
+      <div id="ins-profile" style="display:none">
+        <div class="card">
+          <div class="profile-header">
+            <div class="profile-av av-ins">АД</div>
+            <div>
+              <div style="font-size:16px;font-weight:500" id="ins-fullname">Алмас Дюсенов</div>
+              <div style="font-size:13px;color:var(--text-secondary)">Инсталлятор · ID 132</div>
+            </div>
+          </div>
+          <div class="tabs" style="margin-top:0">
+            <div class="tab active" id="ptab-info"    onclick="profTab('info')">Данные</div>
+            <div class="tab"        id="ptab-permits" onclick="profTab('permits')">Наряды допуска</div>
+          </div>
+          <div id="prof-info">
+            <table class="info-table">
+              <tr><td>Табельный номер</td><td>132</td></tr>
+              <tr><td>Подразделение</td><td>ДИТ / WFM</td></tr>
+              <tr><td>Статус сегодня</td><td id="prof-status-cell"><span class="badge badge-locked">🔒 Нет допуска</span></td></tr>
+              <tr><td>Последний тест</td><td id="prof-last-test">—</td></tr>
+            </table>
+          </div>
+          <div id="prof-permits" style="display:none">
+            <div class="section-title">Сохранённые наряды допуска</div>
+            <div id="ins-permits-list">
+              <div class="empty-state">Нет сохранённых нарядов.</div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /ins-profile -->
+    </div><!-- /screen-installer -->
+
+
+    <!-- ══════════════════════════════════════
+         ENGINEER SCREEN
+    ══════════════════════════════════════ -->
+    <div class="screen" id="screen-engineer">
+      <div class="tabs">
+        <div class="tab active" id="etab-queue"    onclick="engTab('queue')">Очередь апрувов</div>
+        <div class="tab"        id="etab-history"  onclick="engTab('history')">История</div>
+        <div class="tab"        id="etab-eprofile" onclick="engTab('eprofile')">Профиль</div>
+      </div>
+
+      <!-- ─── TAB: ОЧЕРЕДЬ ─── -->
+      <div id="eng-queue">
+        <div class="card">
+          <div class="section-title">Ожидают подтверждения</div>
+          <div id="eng-notif-list">
+            <div class="empty-state">Нет новых заявок.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── TAB: ИСТОРИЯ ─── -->
+      <div id="eng-history" style="display:none">
+        <div class="card">
+          <div class="section-title">Апрувы за сегодня</div>
+          <div id="eng-history-list">
+            <div class="empty-state">Нет апрувов за сегодня.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── TAB: ПРОФИЛЬ (инженер) ─── -->
+      <div id="eng-eprofile" style="display:none">
+        <div class="card">
+          <div class="profile-header">
+            <div class="profile-av av-eng">НК</div>
+            <div>
+              <div style="font-size:16px;font-weight:500">Нуртай Кенжебеков</div>
+              <div style="font-size:13px;color:var(--text-secondary)">Ведущий инженер · ДИТ</div>
+            </div>
+          </div>
+          <div class="tabs" style="margin-top:0">
+            <div class="tab active" id="eptab-einfo"    onclick="eprofTab('einfo')">Данные</div>
+            <div class="tab"        id="eptab-epermits" onclick="eprofTab('epermits')">Наряды допуска</div>
+          </div>
+          <div id="eprof-einfo">
+            <table class="info-table">
+              <tr><td>Роль</td><td>Ведущий инженер цеха</td></tr>
+              <tr><td>Права</td><td>Апрув инсталляторов, просмотр истории</td></tr>
+              <tr><td>Апрувов сегодня</td><td id="eng-approved-count">0</td></tr>
+            </table>
+          </div>
+          <div id="eprof-epermits" style="display:none">
+            <div class="section-title">Сохранённые наряды допуска</div>
+            <div id="eng-permits-list">
+              <div class="empty-state">Нет сохранённых нарядов.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /screen-engineer -->
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ── DEBUG API LOG (скрыт, включить display:block для отладки) ── -->
+<div class="api-log" id="api-log"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   CONFIG
+   При подключении Keycloak — заменить AUTH_TOKEN на keycloak.token
+═══════════════════════════════════════════════════════════════ */
+const CFG = {
+  WFM_BASE: 'https://10.6.4.118:6021/api/wfm-shift-be/v1.0',
+  INSTALLER_EMPLOYEE_ID: 132,
+  TEST_PASS_THRESHOLD: 70,   // %
+  TEST_TIMER_SECONDS: 1800,  // 30 min
+  AUTH_TOKEN: null            // TODO: keycloak.token после инициализации KC
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   ВОПРОСЫ ТЕСТА
+   Можно вынести в отдельный questions.json и загружать fetch()-ом
+═══════════════════════════════════════════════════════════════ */
+const QUESTIONS = [
+  {
+    q: "Что необходимо сделать перед началом работы с электроустановкой?",
+    opts: ["Надеть СИЗ и проверить исправность инструмента","Сразу приступить к работе","Позвонить мастеру","Подождать 10 минут"],
+    correct: 0
+  },
+  {
+    q: "Какой знак вывешивается на отключённом оборудовании?",
+    opts: ["«Осторожно»","«Не включать — работают люди»","«Высокое напряжение»","«Внимание»"],
+    correct: 1
+  },
+  {
+    q: "Минимально допустимое расстояние от работников до токоведущих частей 10 кВ?",
+    opts: ["0,3 м","0,6 м","1,0 м","1,5 м"],
+    correct: 1
+  },
+  {
+    q: "Что делать при обнаружении нарушения охраны труда?",
+    opts: ["Проигнорировать","Исправить самостоятельно","Сообщить ответственному лицу","Закончить смену"],
+    correct: 2
+  },
+  {
+    q: "Как часто проводится инструктаж по ТБ для инсталляторов?",
+    opts: ["Раз в год","Раз в квартал","Ежедневно перед допуском","Раз в месяц"],
+    correct: 2
+  }
+];
+
+/* ═══════════════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════════════ */
+const S = {
+  role: 'installer',
+  curQ: 0,
+  answers: {},
+  timerVal: CFG.TEST_TIMER_SECONDS,
+  timerRef: null,
+  testStartTime: null,
+  testResult: null,
+  wfmUnlocked: false,
+  insPermits: [],    // хранилище JSON нарядов у инсталлятора
+  engPermits: [],    // хранилище JSON нарядов у инженера
+  engHistory: [],
+  engApprovedCount: 0,
+  pendingPayload: null
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════════════════ */
+function apiHeaders() {
+  const h = { 'Content-Type': 'application/json', 'accept': 'application/json' };
+  if (CFG.AUTH_TOKEN) h['Authorization'] = 'Bearer ' + CFG.AUTH_TOKEN;
+  return h;
+}
+
+function apiLog(method, url, status) {
+  const el = document.getElementById('api-log');
+  const ok = status >= 200 && status < 300;
+  el.innerHTML = `<span style="color:${ok?'var(--green-mid)':'var(--red-mid)'}">${method}</span> ${url}<br><span style="color:var(--text-hint)">${status}</span>`;
+}
+
+/* ─── WFM: GET смены ─── */
+async function loadShifts() {
+  const today = new Date().toISOString().split('T')[0].replace(/-/g,'');
+  const url = `${CFG.WFM_BASE}/shift?employeeId=${CFG.INSTALLER_EMPLOYEE_ID}&shiftDate=${today}`;
+  document.getElementById('wfm-loading').style.display = 'block';
+  document.getElementById('wfm-rows').innerHTML = '';
+  try {
+    const res = await fetch(url, { method: 'GET', headers: apiHeaders() });
+    apiLog('GET', url, res.status);
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    renderShifts(data);
+  } catch (e) {
+    /* mock fallback — убрать когда API будет доступен */
+    renderShiftsMock();
+  } finally {
+    document.getElementById('wfm-loading').style.display = 'none';
+  }
+}
+
+/* ─── WFM: POST наряд ─── */
+async function postShift(payload) {
+  const url = `${CFG.WFM_BASE}/shift`;
+  try {
+    const res = await fetch(url, { method: 'POST', headers: apiHeaders(), body: JSON.stringify(payload) });
+    apiLog('POST', url, res.status);
+    return res.ok;
+  } catch (e) {
+    apiLog('POST', url, 0);
+    return false;
+  }
+}
+
+function renderShifts(data) {
+  const tbody = document.getElementById('wfm-rows');
+  if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-secondary);padding:10px">Нарядов не найдено.</td></tr>'; return; }
+  tbody.innerHTML = data.map(s => `
+    <tr>
+      <td>${s.shiftId || '—'}</td>
+      <td>${s.location || '—'}</td>
+      <td><span class="${s.type==='night'?'shift-night':'shift-day'}">${s.type==='night'?'Ночная':'Дневная'}</span></td>
+      <td>${s.startTime ? s.startTime.slice(11,16) : '—'}–${s.endTime ? s.endTime.slice(11,16) : '—'}</td>
+      <td style="color:var(--green-mid)">✓ Активен</td>
+    </tr>`).join('');
+}
+
+function renderShiftsMock() {
+  const tbody = document.getElementById('wfm-rows');
+  tbody.innerHTML = `
+    <tr><td>НД-20260610-01</td><td>Цех №3, линия А</td><td><span class="shift-day">Дневная</span></td><td>08:00–17:00</td><td style="color:var(--green-mid)">✓ Активен</td></tr>
+    <tr><td>НД-20260610-02</td><td>Подстанция 110кВ</td><td><span class="shift-night">Ночная</span></td><td>20:00–08:00</td><td style="color:var(--green-mid)">✓ Активен</td></tr>
+    <tr><td>НД-20260610-03</td><td>Распред. устройство</td><td><span class="shift-day">Дневная</span></td><td>09:00–18:00</td><td style="color:var(--amber-text)">⧗ Ожидает</td></tr>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ROLE SWITCH
+═══════════════════════════════════════════════════════════════ */
+function switchRole(r) {
+  S.role = r;
+  document.getElementById('screen-installer').classList.toggle('visible', r === 'installer');
+  document.getElementById('screen-engineer').classList.toggle('visible',  r === 'engineer');
+  document.querySelectorAll('.role-btn').forEach((b, i) => {
+    b.classList.toggle('active', (r === 'installer' && i === 0) || (r === 'engineer' && i === 1));
+  });
+  if (r === 'engineer') {
+    document.getElementById('topbar-name').textContent = 'Нуртай Кенжебеков';
+    document.getElementById('topbar-av').textContent = 'НК';
+    document.getElementById('topbar-av').className = 'avatar av-eng';
+  } else {
+    document.getElementById('topbar-name').textContent = 'Алмас Дюсенов';
+    document.getElementById('topbar-av').textContent = 'АД';
+    document.getElementById('topbar-av').className = 'avatar av-ins';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TAB NAVIGATION
+═══════════════════════════════════════════════════════════════ */
+function insTab(t) {
+  ['test','wfm','profile'].forEach(x => {
+    document.getElementById('ins-' + x).style.display = x === t ? 'block' : 'none';
+    document.getElementById('itab-' + x).classList.toggle('active', x === t);
+  });
+  if (t === 'wfm') {
+    if (S.wfmUnlocked) {
+      document.getElementById('wfm-locked-msg').style.display = 'none';
+      document.getElementById('wfm-content').style.display = 'block';
+      loadShifts();
+    } else {
+      document.getElementById('wfm-locked-msg').style.display = 'block';
+      document.getElementById('wfm-content').style.display = 'none';
+    }
+  }
+}
+
+function engTab(t) {
+  ['queue','history','eprofile'].forEach(x => {
+    document.getElementById('eng-' + x).style.display = x === t ? 'block' : 'none';
+    document.getElementById('etab-' + x).classList.toggle('active', x === t);
+  });
+}
+
+function profTab(t) {
+  document.getElementById('prof-info').style.display    = t === 'info'    ? 'block' : 'none';
+  document.getElementById('prof-permits').style.display = t === 'permits' ? 'block' : 'none';
+  document.getElementById('ptab-info').classList.toggle('active',    t === 'info');
+  document.getElementById('ptab-permits').classList.toggle('active', t === 'permits');
+}
+
+function eprofTab(t) {
+  document.getElementById('eprof-einfo').style.display    = t === 'einfo'    ? 'block' : 'none';
+  document.getElementById('eprof-epermits').style.display = t === 'epermits' ? 'block' : 'none';
+  document.getElementById('eptab-einfo').classList.toggle('active',    t === 'einfo');
+  document.getElementById('eptab-epermits').classList.toggle('active', t === 'epermits');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TEST FLOW
+═══════════════════════════════════════════════════════════════ */
+function showInsState(s) {
+  ['start','test','fail','wait','approved'].forEach(x => {
+    document.getElementById('ins-state-' + x).style.display = x === s ? 'block' : 'none';
+  });
+}
+
+function startTest() {
+  S.curQ = 0; S.answers = {};
+  S.timerVal = CFG.TEST_TIMER_SECONDS;
+  S.testStartTime = Date.now();
+  showInsState('test');
+  renderQ();
+  if (S.timerRef) clearInterval(S.timerRef);
+  S.timerRef = setInterval(tickTimer, 1000);
+}
+
+function retryTest() { startTest(); }
+
+function tickTimer() {
+  S.timerVal--;
+  if (S.timerVal <= 0) { clearInterval(S.timerRef); autoFail(); return; }
+  const m = Math.floor(S.timerVal / 60);
+  const s = S.timerVal % 60;
+  document.getElementById('timer-display').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+  if (S.timerVal <= 300) {
+    document.getElementById('timer-badge').classList.add('warn');
+  }
+}
+
+function autoFail() {
+  showInsState('fail');
+  document.getElementById('fail-score').textContent = '0% (время вышло)';
+}
+
+function renderQ() {
+  const q = QUESTIONS[S.curQ];
+  const total = QUESTIONS.length;
+  document.getElementById('q-progress').textContent = 'Вопрос ' + (S.curQ + 1) + ' из ' + total;
+  document.getElementById('q-pbar').style.width = ((S.curQ + 1) / total * 100) + '%';
+  document.getElementById('q-text').textContent = q.q;
+  const sel = S.answers[S.curQ];
+  document.getElementById('q-options').innerHTML = q.opts.map((o, i) =>
+    `<label class="opt${sel === i ? ' selected' : ''}" onclick="selectOpt(${i})">
+      <input type="radio" name="q" value="${i}"${sel === i ? ' checked' : ''}> ${o}
+    </label>`
+  ).join('');
+  const isLast = S.curQ === total - 1;
+  document.getElementById('btn-prev').style.display   = S.curQ > 0 ? 'inline-flex' : 'none';
+  document.getElementById('btn-next').style.display   = isLast ? 'none' : 'inline-flex';
+  document.getElementById('btn-submit').style.display = isLast ? 'inline-flex' : 'none';
+}
+
+function selectOpt(i) { S.answers[S.curQ] = i; renderQ(); }
+function nextQ() { if (S.curQ < QUESTIONS.length - 1) { S.curQ++; renderQ(); } }
+function prevQ() { if (S.curQ > 0) { S.curQ--; renderQ(); } }
+
+function submitTest() {
+  clearInterval(S.timerRef);
+  const elapsed = Math.floor((Date.now() - S.testStartTime) / 1000);
+  let correct = 0;
+  QUESTIONS.forEach((q, i) => { if (S.answers[i] === q.correct) correct++; });
+  const pct = Math.round(correct / QUESTIONS.length * 100);
+  const m = Math.floor(elapsed / 60), sec = elapsed % 60;
+  const timeStr = m + 'м ' + (sec < 10 ? '0' : '') + sec + 'с';
+  S.testResult = { score: pct, correct, total: QUESTIONS.length, time: timeStr, elapsed };
+
+  if (pct < CFG.TEST_PASS_THRESHOLD) {
+    document.getElementById('fail-score').textContent = pct + '%';
+    showInsState('fail');
+  } else {
+    document.getElementById('wait-score').textContent   = pct + '%';
+    document.getElementById('wait-time').textContent    = timeStr;
+    document.getElementById('wait-correct').textContent = correct + '/' + QUESTIONS.length;
+    showInsState('wait');
+    pushEngNotif(pct, timeStr, correct);
+    S.pendingPayload = { pct, timeStr, correct };
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ENGINEER NOTIFICATION
+═══════════════════════════════════════════════════════════════ */
+function pushEngNotif(pct, timeStr, correct) {
+  document.getElementById('eng-notif-list').innerHTML = `
+    <div class="notif-item" id="eng-notif-item">
+      <div class="notif-av">АД</div>
+      <div class="notif-body">
+        <div class="notif-name">Алмас Дюсенов</div>
+        <div class="notif-meta">Результат: ${pct}% · ${correct}/${QUESTIONS.length} верных · Время: ${timeStr}</div>
+        <div class="notif-actions">
+          <button class="btn-approve" onclick="engineerApprove()">✓ Подтвердить</button>
+          <button class="btn-reject"  onclick="engineerReject()">✗ Отклонить</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   APPROVE / REJECT
+═══════════════════════════════════════════════════════════════ */
+async function engineerApprove() {
+  const { pct, timeStr, correct } = S.pendingPayload;
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+
+  /* ─── JSON наряда допуска ─── */
+  const permit = {
+    permit_id: 'НД-' + dateStr.replace(/-/g,'') + '-АД',
+    date: dateStr,
+    valid_until: dateStr + 'T23:59:59Z',
+    generated_at: now.toISOString(),
+    installer: {
+      employee_id: CFG.INSTALLER_EMPLOYEE_ID,
+      full_name: 'Дюсенов Алмас Бекович',
+      role: 'installer'
+    },
+    engineer: {
+      full_name: 'Кенжебеков Нуртай',
+      role: 'engineer'
+    },
+    test_result: {
+      score_pct: pct,
+      correct_answers: correct,
+      total_questions: QUESTIONS.length,
+      duration: timeStr
+    },
+    wfm_access: {
+      unlocked: true,
+      shift_date: dateStr,
+      employee_id: CFG.INSTALLER_EMPLOYEE_ID
+    }
+  };
+
+  /* ─── POST в WFM ─── */
+  await postShift({
+    employeeId: CFG.INSTALLER_EMPLOYEE_ID,
+    startTime: dateStr + 'T08:00:00.000Z',
+    endTime:   dateStr + 'T17:00:00.000Z'
+  });
+
+  /* ─── Сохранить JSON отдельно в профилях ─── */
+  S.insPermits.push(permit);
+  S.engPermits.push(permit);
+  S.wfmUnlocked = true;
+  S.engApprovedCount++;
+
+  /* ─── Обновить UI инженера ─── */
+  document.getElementById('eng-approved-count').textContent = S.engApprovedCount;
+  const item = document.getElementById('eng-notif-item');
+  if (item) item.remove();
+  const qList = document.getElementById('eng-notif-list');
+  if (!qList.querySelector('.notif-item')) qList.innerHTML = '<div class="empty-state">Нет новых заявок.</div>';
+
+  const hList = document.getElementById('eng-history-list');
+  if (hList.querySelector('.empty-state')) hList.innerHTML = '';
+  hList.insertAdjacentHTML('afterbegin', `
+    <div class="notif-item">
+      <div class="notif-av">АД</div>
+      <div class="notif-body">
+        <div class="notif-name">Алмас Дюсенов</div>
+        <div class="notif-meta">${pct}% · ${timeStr} · <span style="color:var(--green-mid)">Подтверждён</span></div>
+      </div>
+    </div>`);
+
+  /* ─── Обновить UI инсталлятора ─── */
+  showInsState('approved');
+  updateProfStatus(pct, timeStr);
+  renderInsPermits();
+  renderEngPermits();
+}
+
+function engineerReject() {
+  const item = document.getElementById('eng-notif-item');
+  if (item) item.remove();
+  document.getElementById('eng-notif-list').innerHTML = '<div class="empty-state">Нет новых заявок.</div>';
+  showInsState('start');
+  S.pendingPayload = null;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RENDER PERMIT LISTS (в профилях)
+═══════════════════════════════════════════════════════════════ */
+function renderInsPermits() {
+  const el = document.getElementById('ins-permits-list');
+  if (!S.insPermits.length) { el.innerHTML = '<div class="empty-state">Нет сохранённых нарядов.</div>'; return; }
+  el.innerHTML = S.insPermits.map(p => `
+    <div class="permit-entry">
+      <div class="permit-entry-header">
+        <span class="permit-entry-id">${p.permit_id}</span>
+        <span class="badge badge-approved">✓ ${p.date}</span>
+      </div>
+      <div class="json-block">${JSON.stringify(p, null, 2)}</div>
+    </div>`).join('');
+}
+
+function renderEngPermits() {
+  const el = document.getElementById('eng-permits-list');
+  if (!S.engPermits.length) { el.innerHTML = '<div class="empty-state">Нет сохранённых нарядов.</div>'; return; }
+  el.innerHTML = S.engPermits.map(p => `
+    <div class="permit-entry">
+      <div class="permit-entry-header">
+        <span class="permit-entry-id">${p.permit_id}</span>
+        <span class="badge badge-approved">✓ ${p.date}</span>
+      </div>
+      <div class="json-block">${JSON.stringify(p, null, 2)}</div>
+    </div>`).join('');
+}
+
+function updateProfStatus(pct, timeStr) {
+  document.getElementById('prof-status-cell').innerHTML = '<span class="badge badge-approved">🔓 Допуск активен</span>';
+  document.getElementById('prof-last-test').textContent = pct + '% · ' + timeStr;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════ */
+document.getElementById('wfm-date-label').textContent =
+  new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+</script>
+</body>
+</html>

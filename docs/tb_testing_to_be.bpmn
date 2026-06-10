@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_tb_testing" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.34.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.7.0">
+  <bpmn:collaboration id="Collaboration_tb_testing">
+    <bpmn:participant id="Participant_tb" name="Тестирование по ТБ — допуск к нарядам ВФМ" processRef="Process_tb_testing" />
+    <bpmn:textAnnotation id="TextAnnotation_1v5pq1p">
+      <bpmn:text>ТБ - техника безопасности</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_1j5li2u" associationDirection="None" sourceRef="Task_show_test_screen" targetRef="TextAnnotation_1v5pq1p" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_tb_testing" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_tb">
+      <bpmn:lane id="Lane_system" name="Система">
+        <bpmn:flowNodeRef>StartEvent_midnight</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_lock_wfm</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_generate_json</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_save_json</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_unlock_wfm</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_installer" name="Инсталлятор">
+        <bpmn:flowNodeRef>Task_show_test_screen</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_1xodl56</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_start_test</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_answer_questions</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_submit_test</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_retry_test</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_test_passed</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_access_wfm</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_done</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_0vh5juu</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_engineer" name="Инженер">
+        <bpmn:flowNodeRef>Task_review_result</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_approve_installer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_receive_notification</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_midnight" name="00:00 — начало нового дня">
+      <bpmn:outgoing>Flow_midnight_to_lock</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerDef_midnight">
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">0 0 0 * * ?</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_lock_wfm" name="Заблокировать наряды ВФМ для всех инсталляторов">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="wfm:lock-work-orders" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_midnight_to_lock</bpmn:incoming>
+      <bpmn:outgoing>Flow_lock_to_screen</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_midnight_to_lock" sourceRef="StartEvent_midnight" targetRef="Task_lock_wfm" />
+    <bpmn:sequenceFlow id="Flow_lock_to_screen" sourceRef="Task_lock_wfm" targetRef="Task_show_test_screen" />
+    <bpmn:sequenceFlow id="Flow_start_to_questions" sourceRef="Task_start_test" targetRef="Task_answer_questions" />
+    <bpmn:sequenceFlow id="Flow_questions_to_submit" sourceRef="Task_answer_questions" targetRef="Task_submit_test" />
+    <bpmn:sequenceFlow id="Flow_submit_to_gateway" sourceRef="Task_submit_test" targetRef="Gateway_test_passed" />
+    <bpmn:sequenceFlow id="Flow_passed_yes" name="Да — порог набран" sourceRef="Gateway_test_passed" targetRef="Task_receive_notification" />
+    <bpmn:sequenceFlow id="Flow_retry_to_start" sourceRef="Task_retry_test" targetRef="Gateway_1xodl56" />
+    <bpmn:sequenceFlow id="Flow_notif_to_review" sourceRef="Task_receive_notification" targetRef="Task_review_result" />
+    <bpmn:sequenceFlow id="Flow_review_to_approve" sourceRef="Task_review_result" targetRef="Task_approve_installer" />
+    <bpmn:sequenceFlow id="Flow_approve_to_gen_json" sourceRef="Task_approve_installer" targetRef="Task_generate_json" />
+    <bpmn:sequenceFlow id="Flow_approve_to_unlock_trigger" sourceRef="Task_wait_engineer_approval" targetRef="Task_wait_engineer_approval" />
+    <bpmn:sequenceFlow id="Flow_unlock_to_wfm" sourceRef="Task_unlock_wfm" targetRef="Task_access_wfm" />
+    <bpmn:sequenceFlow id="Flow_wfm_to_end" sourceRef="Task_access_wfm" targetRef="EndEvent_done" />
+    <bpmn:sequenceFlow id="Flow_144rneq" sourceRef="Gateway_1xodl56" targetRef="Task_start_test" />
+    <bpmn:sequenceFlow id="Flow_1xm5jr4" sourceRef="Task_show_test_screen" targetRef="Gateway_1xodl56" />
+    <bpmn:sequenceFlow id="Flow_11r7ie0" name="Нет" sourceRef="Gateway_test_passed" targetRef="Task_retry_test" />
+    <bpmn:sequenceFlow id="Flow_1rinxnr" sourceRef="Task_generate_json" targetRef="Task_save_json" />
+    <bpmn:sequenceFlow id="Flow_087h13u" sourceRef="Task_save_json" targetRef="Task_unlock_wfm" />
+    <bpmn:userTask id="Task_show_test_screen" name="Отобразить экран тестирования по ТБ">
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:ioMapping>
+          <zeebe:output source="=previousTestResult" target="previousTestResult" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_lock_to_screen</bpmn:incoming>
+      <bpmn:outgoing>Flow_1xm5jr4</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_1xodl56">
+      <bpmn:incoming>Flow_retry_to_start</bpmn:incoming>
+      <bpmn:incoming>Flow_1xm5jr4</bpmn:incoming>
+      <bpmn:outgoing>Flow_144rneq</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_start_test" name="Нажать кнопку «Начать тест»">
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_144rneq</bpmn:incoming>
+      <bpmn:outgoing>Flow_start_to_questions</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_answer_questions" name="Отвечать на вопросы теста (с таймером)">
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:ioMapping>
+          <zeebe:output source="=answers" target="testAnswers" />
+          <zeebe:output source="=elapsedTime" target="testDuration" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_start_to_questions</bpmn:incoming>
+      <bpmn:outgoing>Flow_questions_to_submit</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:boundaryEvent id="Event_0vh5juu" name="30 минут" attachedToRef="Task_answer_questions">
+      <bpmn:outgoing>Flow_17ubbr1</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_0m7clk2" />
+    </bpmn:boundaryEvent>
+    <bpmn:userTask id="Task_submit_test" name="Нажать кнопку «Сдать тест»">
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_questions_to_submit</bpmn:incoming>
+      <bpmn:outgoing>Flow_submit_to_gateway</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_17ubbr1" sourceRef="Event_0vh5juu" targetRef="Task_retry_test" />
+    <bpmn:userTask id="Task_retry_test" name="Уведомление: тест не пройден. Повторить попытку">
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_11r7ie0</bpmn:incoming>
+      <bpmn:incoming>Flow_17ubbr1</bpmn:incoming>
+      <bpmn:outgoing>Flow_retry_to_start</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_test_passed" name="Тест пройден успешно?">
+      <bpmn:incoming>Flow_submit_to_gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_passed_yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_11r7ie0</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_review_result" name="Просмотреть результаты теста инсталлятора">
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_notif_to_review</bpmn:incoming>
+      <bpmn:outgoing>Flow_review_to_approve</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_approve_installer" name="Нажать кнопку «Подтвердить» инсталлятора">
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_review_to_approve</bpmn:incoming>
+      <bpmn:outgoing>Flow_approve_to_gen_json</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_generate_json" name="Сформировать JSON наряда допуска (динамические поля: фио подтверждающего и фио инсталлятора — на 1 день)">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="permit:generate-json" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=installerFullName" target="installerFullName" />
+          <zeebe:input source="=testScore" target="testScore" />
+          <zeebe:input source="=testDuration" target="testDuration" />
+          <zeebe:input source="=today()" target="permitDate" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_approve_to_gen_json</bpmn:incoming>
+      <bpmn:outgoing>Flow_1rinxnr</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_save_json" name="Сохранить JSON наряда допуска у инсталлятора и у инженера в базе">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="permit:save-json" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1rinxnr</bpmn:incoming>
+      <bpmn:outgoing>Flow_087h13u</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_unlock_wfm" name="Разблокировать наряды ВФМ для инсталлятора">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="wfm:unlock-work-orders" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_087h13u</bpmn:incoming>
+      <bpmn:outgoing>Flow_unlock_to_wfm</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_access_wfm" name="Открыть наряды ВФМ — доступ разблокирован">
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_unlock_to_wfm</bpmn:incoming>
+      <bpmn:outgoing>Flow_wfm_to_end</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="EndEvent_done" name="Инсталлятор получил доступ к нарядам ВФМ">
+      <bpmn:incoming>Flow_wfm_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="Task_receive_notification" name="Получить уведомление: ФИО, результат, время прохождения теста">
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:ioMapping>
+          <zeebe:input source="=installerFullName" target="installerFullName" />
+          <zeebe:input source="=testScore" target="testScore" />
+          <zeebe:input source="=testDuration" target="testDuration" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_passed_yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_notif_to_review</bpmn:outgoing>
+    </bpmn:userTask>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_tb_testing">
+      <bpmndi:BPMNShape id="Participant_tb_di" bpmnElement="Participant_tb" isHorizontal="true">
+        <dc:Bounds x="120" y="60" width="2170" height="700" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_engineer_di" bpmnElement="Lane_engineer" isHorizontal="true">
+        <dc:Bounds x="150" y="570" width="2140" height="190" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_installer_di" bpmnElement="Lane_installer" isHorizontal="true">
+        <dc:Bounds x="150" y="220" width="2140" height="350" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_system_di" bpmnElement="Lane_system" isHorizontal="true">
+        <dc:Bounds x="150" y="60" width="2140" height="160" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_midnight_di" bpmnElement="StartEvent_midnight">
+        <dc:Bounds x="222" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="198" y="165" width="85" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_lock_wfm_di" bpmnElement="Task_lock_wfm">
+        <dc:Bounds x="320" y="100" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_show_test_screen_di" bpmnElement="Task_show_test_screen">
+        <dc:Bounds x="320" y="250" width="160" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1xodl56_di" bpmnElement="Gateway_1xodl56" isMarkerVisible="true">
+        <dc:Bounds x="525" y="265" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_start_test_di" bpmnElement="Task_start_test">
+        <dc:Bounds x="600" y="250" width="160" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_answer_questions_di" bpmnElement="Task_answer_questions">
+        <dc:Bounds x="800" y="250" width="160" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_submit_test_di" bpmnElement="Task_submit_test">
+        <dc:Bounds x="1000" y="250" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_retry_test_di" bpmnElement="Task_retry_test">
+        <dc:Bounds x="1000" y="380" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_test_passed_di" bpmnElement="Gateway_test_passed" isMarkerVisible="true">
+        <dc:Bounds x="1195" y="265" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1185.5" y="236" width="69" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_review_result_di" bpmnElement="Task_review_result">
+        <dc:Bounds x="1400" y="620" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_approve_installer_di" bpmnElement="Task_approve_installer">
+        <dc:Bounds x="1590" y="620" width="160" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_generate_json_di" bpmnElement="Task_generate_json">
+        <dc:Bounds x="1590" y="110" width="160" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_save_json_di" bpmnElement="Task_save_json">
+        <dc:Bounds x="1790" y="120" width="160" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_unlock_wfm_di" bpmnElement="Task_unlock_wfm">
+        <dc:Bounds x="1990" y="120" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_access_wfm_di" bpmnElement="Task_access_wfm">
+        <dc:Bounds x="1990" y="320" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_done_di" bpmnElement="EndEvent_done">
+        <dc:Bounds x="2192" y="342" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2171" y="385" width="80" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_receive_notification_di" bpmnElement="Task_receive_notification">
+        <dc:Bounds x="1200" y="620" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_026grvi_di" bpmnElement="Event_0vh5juu">
+        <dc:Bounds x="942" y="312" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="907" y="353" width="46" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_midnight_to_lock_di" bpmnElement="Flow_midnight_to_lock">
+        <di:waypoint x="258" y="140" />
+        <di:waypoint x="320" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_lock_to_screen_di" bpmnElement="Flow_lock_to_screen">
+        <di:waypoint x="400" y="180" />
+        <di:waypoint x="400" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_start_to_questions_di" bpmnElement="Flow_start_to_questions">
+        <di:waypoint x="760" y="290" />
+        <di:waypoint x="800" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_questions_to_submit_di" bpmnElement="Flow_questions_to_submit">
+        <di:waypoint x="960" y="290" />
+        <di:waypoint x="1000" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_submit_to_gateway_di" bpmnElement="Flow_submit_to_gateway">
+        <di:waypoint x="1160" y="290" />
+        <di:waypoint x="1195" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_passed_yes_di" bpmnElement="Flow_passed_yes">
+        <di:waypoint x="1245" y="290" />
+        <di:waypoint x="1290" y="290" />
+        <di:waypoint x="1290" y="620" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1300" y="296" width="60" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_retry_to_start_di" bpmnElement="Flow_retry_to_start">
+        <di:waypoint x="1000" y="420" />
+        <di:waypoint x="550" y="420" />
+        <di:waypoint x="550" y="315" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_notif_to_review_di" bpmnElement="Flow_notif_to_review">
+        <di:waypoint x="1360" y="660" />
+        <di:waypoint x="1400" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_review_to_approve_di" bpmnElement="Flow_review_to_approve">
+        <di:waypoint x="1560" y="660" />
+        <di:waypoint x="1590" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_approve_to_gen_json_di" bpmnElement="Flow_approve_to_gen_json">
+        <di:waypoint x="1670" y="620" />
+        <di:waypoint x="1670" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_unlock_to_wfm_di" bpmnElement="Flow_unlock_to_wfm">
+        <di:waypoint x="2070" y="200" />
+        <di:waypoint x="2070" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_wfm_to_end_di" bpmnElement="Flow_wfm_to_end">
+        <di:waypoint x="2150" y="360" />
+        <di:waypoint x="2192" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_144rneq_di" bpmnElement="Flow_144rneq">
+        <di:waypoint x="575" y="290" />
+        <di:waypoint x="600" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1xm5jr4_di" bpmnElement="Flow_1xm5jr4">
+        <di:waypoint x="480" y="290" />
+        <di:waypoint x="525" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_11r7ie0_di" bpmnElement="Flow_11r7ie0">
+        <di:waypoint x="1220" y="315" />
+        <di:waypoint x="1220" y="420" />
+        <di:waypoint x="1160" y="420" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1195" y="343" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1rinxnr_di" bpmnElement="Flow_1rinxnr">
+        <di:waypoint x="1750" y="160" />
+        <di:waypoint x="1790" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_087h13u_di" bpmnElement="Flow_087h13u">
+        <di:waypoint x="1950" y="160" />
+        <di:waypoint x="1990" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_17ubbr1_di" bpmnElement="Flow_17ubbr1">
+        <di:waypoint x="960" y="348" />
+        <di:waypoint x="960" y="390" />
+        <di:waypoint x="1000" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_1j5li2u_di" bpmnElement="Association_1j5li2u">
+        <di:waypoint x="320" y="321" />
+        <di:waypoint x="269" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="TextAnnotation_1v5pq1p_di" bpmnElement="TextAnnotation_1v5pq1p">
+        <dc:Bounds x="180" y="340" width="150" height="41" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
